@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  gateway:
+    image: theloneparticle/cloudcomputing:gateway-service 
+    environment:
+      BOOKS_SERVICE_API_ROUTE: books-service/api
+      NODE_ENV: development
+    ports:
+     - "5555:80"
+    networks:
+     - books-gateway
+
+  books-service:
+    image: theloneparticle/cloudcomputing:books-service
+    environment:
+      IO_SERVICE_API_ROUTE: io-service/api
+      NODE_ENV: development
+    networks:
+      - books-gateway
+      - books-io
+  
+  io-service:
+    image: theloneparticle/cloudcomputing:io-service
+    environment:
+      PGUSER_FILE: user_secret
+      PGPASSWORD_FILE: pass_secret
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: books
+      NODE_ENV: staging
+    networks:
+      - books-io
+      - io-db
+    secrets:
+      - pass_secret
+      - user_secret
+  db:
+    image: postgres:12
+    environment:
+      POSTGRES_DB: books
+      POSTGRES_USER_FILE: /run/secrets/user_secret
+      POSTGRES_PASSWORD_FILE: /run/secrets/pass_secret
+    volumes:
+      - lab4_db_volume:/var/lib/postgresql/data
+      - ./Database/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - io-db
+      - db-adminer
+    secrets:
+      - pass_secret
+      - user_secret
+
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
+    networks:
+      - db-adminer
+
+volumes:
+  lab4_db_volume:
+networks:
+  books-gateway:
+  books-io:
+  io-db:
+  db-adminer:
+
+secrets:
+  pass_secret:
+    file : ./secrets/password
+  user_secret:
+    file : ./secrets/user
